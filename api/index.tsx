@@ -46,11 +46,22 @@ app.frame('/submit', async (c) => {
   const { inputText, deriveState } = c;
 
   const state = await deriveState(async (previousState) => {
-    const column = parseInt(inputText || '') - 1;
-    if (!isNaN(column) && column >= 0 && column < 7) {
+    const playerColumn = parseInt(inputText || '') - 1;
+    if (!isNaN(playerColumn) && playerColumn >= 0 && playerColumn < 7) {
       for (let row = 5; row >= 0; row--) {
-        if (previousState.board[row][column] === '⚪') {
-          previousState.board[row][column] = '🔴';
+        if (previousState.board[row][playerColumn] === '⚪') {
+          previousState.board[row][playerColumn] = '🔴';
+          break;
+        }
+      }
+    }
+
+    const availableColumns = previousState.board[0].map((_, column) => column).filter(column => previousState.board[0][column] === '⚪');
+    if (availableColumns.length > 0) {
+      const botColumn = availableColumns[Math.floor(Math.random() * availableColumns.length)];
+      for (let row = 5; row >= 0; row--) {
+        if (previousState.board[row][botColumn] === '⚪') {
+          previousState.board[row][botColumn] = '🟡';
           break;
         }
       }
@@ -77,7 +88,7 @@ app.frame('/submit', async (c) => {
         boxSizing: 'border-box'
       }}>
         <div>{renderBoard(state.board)}</div>
-        <div style={{ marginTop: '20px' }}>Enter next move:</div>
+        <div style={{ marginTop: '20px' }}>Enter your next move:</div>
       </div>
     ),
     intents: [

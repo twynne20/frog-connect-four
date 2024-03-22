@@ -1,0 +1,190 @@
+import { Button, Frog } from 'frog'
+import { handle } from 'frog/vercel'
+import { devtools } from 'frog/dev'
+import { serveStatic } from 'frog/serve-static'
+
+// Uncomment to use Edge Runtime.
+// export const config = {
+//   runtime: 'edge',
+// }
+
+export const app = new Frog({ 
+  basePath: '/api',
+})
+
+const ROWS = 6
+const COLS = 7
+
+type State = {
+  grid: (0 | 1 | 2)[][]
+  currentPlayer: 1 | 2
+  winner: 0 | 1 | 2
+}
+
+const initialState: State = {
+  grid: Array(ROWS).fill(null).map(() => Array(COLS).fill(0)),
+  currentPlayer: 1,
+  winner: 0
+}
+
+app.frame('/', (c) => {
+  const { buttonValue, deriveState } = c
+  const state = deriveState((previousState: State) => {
+    if (previousState.winner !== 0) return
+
+    if (buttonValue !== undefined) {
+      const col = parseInt(buttonValue)
+      const newGrid = makeMove(previousState.grid, col, previousState.currentPlayer)
+      if (newGrid) {
+        previousState.grid = newGrid
+        if (checkWin(previousState.grid, previousState.currentPlayer)) {
+          previousState.winner = previousState.currentPlayer
+        } else {
+          previousState.currentPlayer = previousState.currentPlayer === 1 ? 2 : 1
+          if (previousState.currentPlayer === 2) {
+            const botCol = botMove(previousState.grid)
+            const botGrid = makeMove(previousState.grid, botCol, 2)
+            if (botGrid) {
+              previousState.grid = botGrid
+              if (checkWin(previousState.grid, 2)) {
+                previousState.winner = 2
+              } else {
+                previousState.currentPlayer = 1
+              }
+            }
+          }
+        }
+      }
+    }
+  }, initialState)
+
+  const isGridFull = state.grid.every(row => row.every(cell => cell !== 0))
+
+  return c.res({
+    image: (
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          justifyContent: 'center',
+          gap: 10,
+          marginBottom: 20
+        }}
+      >
+        {state.grid.map((row, rowIndex) =>
+          row.map((cell, colIndex) => (
+            <div
+              key={`${rowIndex}-${colIndex}`}
+              style={{
+                width: 50,
+                height: 50,
+                backgroundColor: cell === 0 ? '#fff' : cell === 1 ? '#f00' : '#00f',
+                borderRadius: '50%',
+                border: '2px solid #fff'
+              }}
+            />
+          ))
+        )}
+      </div>
+    ),
+    intents: state.winner === 0 && !isGridFull ? (
+      Array(COLS).fill(null).map((_, i) => (
+        <Button key={i} value={i.toString()}>
+          Drop in Column {i + 1}
+        </Button>
+      ))
+    ) : (
+      <Button action="/">Play Again</Button>
+    )
+  })
+})
+
+// Add the checkWin, makeMove, and botMove functions here
+
+const checkWin = (grid: State['grid'], player: 1 | 2): boolean => {
+    // Check rows
+    for (let row = 0; row < ROWS; row++) {
+      for (let col = 0; col < COLS - 3; col++) {
+        if (
+          grid[row][col] === player &&
+          grid[row][col + 1] === player &&
+          grid[row][col + 2] === player &&
+          grid[row][col + 3] === player
+        ) {
+          return true
+        }
+      }
+    }
+  
+    // Check columns
+    for (let row = 0; row < ROWS - 3; row++) {
+      for (let col = 0; col < COLS; col++) {
+        if (
+          grid[row][col] === player &&
+          grid[row + 1][col] === player &&
+          grid[row + 2][col] === player &&
+          grid[row + 3][col] === player
+        ) {
+          return true
+        }
+      }
+    }
+  
+    // Check diagonals (top-left to bottom-right)
+    for (let row = 0; row < ROWS - 3; row++) {
+      for (let col = 0; col < COLS - 3; col++) {
+        if (
+          grid[row][col] === player &&
+          grid[row + 1][col + 1] === player &&
+          grid[row + 2][col + 2] === player &&
+          grid[row + 3][col + 3] === player
+        ) {
+          return true
+        }
+      }
+    }
+  
+    // Check diagonals (bottom-left to top-right)
+    for (let row = 3; row < ROWS; row++) {
+      for (let col = 0; col < COLS - 3; col++) {
+        if (
+          grid[row][col] === player &&
+          grid[row - 1][col + 1] === player &&
+          grid[row - 2][col + 2] === player &&
+          grid[row - 3][col + 3] === player
+        ) {
+          return true
+        }
+      }
+    }
+  
+    return false
+  }
+  
+  const makeMove = (grid: State['grid'], col: number, player: 1 | 2): State['grid'] | null => {
+    for (let row = ROWS - 1; row >= 0; row--) {
+      if (grid[row][col] === 0) {
+        const newGrid = grid.map(row => [...row])
+        newGrid[row][col] = player
+        return newGrid
+      }
+    }
+    return null
+  }
+  
+  const botMove = (grid: State['grid']): number => {
+    const availableCols = []
+    for (let col = 0; col < COLS; col++) {
+      if (grid[0][col] === 0) {
+        availableCols.push(col)
+      }
+    }
+    return availableCols[Math.floor(Math.random() * availableCols.length)]
+  }
+
+// Setup Devtools
+if (import.meta.env?.MODE === 'development') devtools(app, { serveStatic })
+else devtools(app, { assetsPath: '/.frog' })
+
+export const GET = handle(app)
+export const POST = handle(app)

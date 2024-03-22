@@ -1,0 +1,177 @@
+import { Button, Frog } from 'frog'
+import { devtools } from 'frog/dev'
+import { serveStatic } from 'frog/serve-static'
+
+type State = {
+  grid: (0 | 1 | 2)[][]
+  currentPlayer: 1 | 2
+  winner: 0 | 1 | 2
+}
+
+const ROWS = 6
+const COLS = 7
+
+const initialState: State = {
+  grid: Array(ROWS).fill(null).map(() => Array(COLS).fill(0)),
+  currentPlayer: 1,
+  winner: 0
+}
+
+export const app = new Frog<{ State: State }>({
+  initialState
+})
+
+const checkWin = (grid: State['grid'], player: 1 | 2): boolean => {
+  // Check rows
+  for (let row = 0; row < ROWS; row++) {
+    for (let col = 0; col < COLS - 3; col++) {
+      if (
+        grid[row][col] === player &&
+        grid[row][col + 1] === player &&
+        grid[row][col + 2] === player &&
+        grid[row][col + 3] === player
+      ) {
+        return true
+      }
+    }
+  }
+
+  // Check columns
+  for (let row = 0; row < ROWS - 3; row++) {
+    for (let col = 0; col < COLS; col++) {
+      if (
+        grid[row][col] === player &&
+        grid[row + 1][col] === player &&
+        grid[row + 2][col] === player &&
+        grid[row + 3][col] === player
+      ) {
+        return true
+      }
+    }
+  }
+
+  // Check diagonals (top-left to bottom-right)
+  for (let row = 0; row < ROWS - 3; row++) {
+    for (let col = 0; col < COLS - 3; col++) {
+      if (
+        grid[row][col] === player &&
+        grid[row + 1][col + 1] === player &&
+        grid[row + 2][col + 2] === player &&
+        grid[row + 3][col + 3] === player
+      ) {
+        return true
+      }
+    }
+  }
+
+  // Check diagonals (bottom-left to top-right)
+  for (let row = 3; row < ROWS; row++) {
+    for (let col = 0; col < COLS - 3; col++) {
+      if (
+        grid[row][col] === player &&
+        grid[row - 1][col + 1] === player &&
+        grid[row - 2][col + 2] === player &&
+        grid[row - 3][col + 3] === player
+      ) {
+        return true
+      }
+    }
+  }
+
+  return false
+}
+
+const makeMove = (grid: State['grid'], col: number, player: 1 | 2): State['grid'] | null => {
+  for (let row = ROWS - 1; row >= 0; row--) {
+    if (grid[row][col] === 0) {
+      const newGrid = grid.map(row => [...row])
+      newGrid[row][col] = player
+      return newGrid
+    }
+  }
+  return null
+}
+
+const botMove = (grid: State['grid']): number => {
+  const availableCols = []
+  for (let col = 0; col < COLS; col++) {
+    if (grid[0][col] === 0) {
+      availableCols.push(col)
+    }
+  }
+  return availableCols[Math.floor(Math.random() * availableCols.length)]
+}
+
+app.frame('/', (c) => {
+  const { buttonValue, deriveState } = c
+  const state = deriveState(({ grid, currentPlayer, winner }) => {
+    if (winner !== 0) return
+
+    if (buttonValue !== undefined) {
+      const col = parseInt(buttonValue)
+      const newGrid = makeMove(grid, col, currentPlayer)
+      if (newGrid) {
+        grid = newGrid
+        if (checkWin(grid, currentPlayer)) {
+          winner = currentPlayer
+        } else {
+          currentPlayer = currentPlayer === 1 ? 2 : 1
+          if (currentPlayer === 2) {
+            const botCol = botMove(grid)
+            const botGrid = makeMove(grid, botCol, 2)
+            if (botGrid) {
+              grid = botGrid
+              if (checkWin(grid, 2)) {
+                winner = 2
+              } else {
+                currentPlayer = 1
+              }
+            }
+          }
+        }
+      }
+    }
+  })
+
+  const isGridFull = state.grid.every(row => row.every(cell => cell !== 0))
+
+  return c.res({
+    image: (
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          justifyContent: 'center',
+          gap: 10,
+          marginBottom: 20
+        }}
+      >
+        {state.grid.map((row, rowIndex) =>
+          row.map((cell, colIndex) => (
+            <div
+              key={`${rowIndex}-${colIndex}`}
+              style={{
+                width: 50,
+                height: 50,
+                backgroundColor: cell === 0 ? '#fff' : cell === 1 ? '#f00' : '#00f',
+                borderRadius: '50%',
+                border: '2px solid #fff'
+              }}
+            />
+          ))
+        )}
+      </div>
+    ),
+    intents: state.winner === 0 && !isGridFull ? (
+      Array(COLS).fill(null).map((_, i) => (
+        <Button key={i} value={i.toString()}>
+          Drop in Column {i + 1}
+        </Button>
+      ))
+    ) : (
+      <Button action="/">Play Again</Button>
+    )
+  })
+})
+
+devtools(app, { serveStatic })
