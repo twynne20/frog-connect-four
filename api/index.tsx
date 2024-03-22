@@ -16,7 +16,7 @@ export const app = new Frog<{ State: State }>({
 
 const renderBoard = (board: string[][]): string => {
   const boardString = board.map(row => row.join('   ')).join('\n');
-  const columnNumbers = ' 1   2   3   4   5   6   7 ';
+  const columnNumbers = '1     2     3     4     5    6    7 ';
   return `${boardString}\n${columnNumbers}`;
 };
 
