@@ -13,8 +13,8 @@ export const app = new Frog<{ State: State }>({
 });
 
 const renderBoard = (board: string[][]): string => {
-  const boardString = board.map(row => row.join(' ')).join('\n');
-  const columnNumbers = '1   2   3   4   5   6   7';
+  const boardString = board.map(row => row.join('   ')).join('\n');
+  const columnNumbers = ' 1   2   3   4   5   6   7 ';
   return `${boardString}\n${columnNumbers}`;
 };
 
@@ -58,6 +58,7 @@ app.frame('/submit', async (c) => {
 
   const state = await deriveState(async (previousState) => {
     const playerColumn = parseInt(inputText || '') - 1;
+
     if (!isNaN(playerColumn) && playerColumn >= 0 && playerColumn < 7) {
       for (let row = 5; row >= 0; row--) {
         if (previousState.board[row][playerColumn] === '⚪') {
@@ -65,19 +66,21 @@ app.frame('/submit', async (c) => {
           break;
         }
       }
-    }
 
-    const availableColumns = previousState.board[0].map((_, column) => column).filter(column => previousState.board[0][column] === '⚪');
-    if (availableColumns.length > 0) {
-      const botColumn = availableColumns[Math.floor(Math.random() * availableColumns.length)];
-      for (let row = 5; row >= 0; row--) {
-        if (previousState.board[row][botColumn] === '⚪') {
-          previousState.board[row][botColumn] = '🟡';
-          break;
+      const availableColumns = previousState.board[0].map((_, column) => column).filter(column => previousState.board[0][column] === '⚪');
+      if (availableColumns.length > 0) {
+        const botColumn = availableColumns[Math.floor(Math.random() * availableColumns.length)];
+        for (let row = 5; row >= 0; row--) {
+          if (previousState.board[row][botColumn] === '⚪') {
+            previousState.board[row][botColumn] = '🟡';
+            break;
+          }
         }
       }
     }
   });
+
+  const isValidInput = inputText !== undefined && !isNaN(parseInt(inputText)) && parseInt(inputText) >= 1 && parseInt(inputText) <= 7;
 
   return c.res({
     image: (
@@ -100,7 +103,7 @@ app.frame('/submit', async (c) => {
       }}>
         <div style={{ fontSize: '48px', marginBottom: '20px' }}>Connect 4</div>
         <div>{renderBoard(state.board)}</div>
-        <div style={{ marginTop: '20px' }}>Enter your next move fren!</div>
+        <div style={{ marginTop: '20px' }}>{isValidInput ? 'Enter your next move fren!' : 'Invalid input! Please enter a number between 1 and 7.'}</div>
       </div>
     ),
     intents: [
