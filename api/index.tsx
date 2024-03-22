@@ -13,8 +13,12 @@ export const app = new Frog<{ State: State }>({
 });
 
 const renderBoard = (board: string[][]): string => {
-  return board.map(row => row.join(' ')).join('\n');
+  const boardString = board.map(row => row.join(' ')).join('\n');
+  const columnNumbers = '1   2   3   4   5   6   7';
+  return `${boardString}\n${columnNumbers}`;
 };
+
+const emptyBoard = Array.from({ length: 6 }, () => Array(7).fill('⚪'));
 
 app.frame('/', (c) => {
   return c.res({
@@ -27,12 +31,19 @@ app.frame('/', (c) => {
         backgroundColor: 'white',
         textAlign: 'center',
         display: 'flex',
+        flexDirection: 'column',
         justifyContent: 'center',
         alignItems: 'center',
         height: '100%',
-        width: '100%'
+        width: '100%',
+        padding: '20px',
+        borderRadius: '8px',
+        border: '5px solid black',
+        boxSizing: 'border-box'
       }}>
-        Place your chip (Enter column number 1-7):
+        <div style={{ fontSize: '48px', marginBottom: '20px' }}>Connect 4</div>
+        <div>{renderBoard(emptyBoard)}</div>
+        <div style={{ marginTop: '20px' }}>Enter column number (1-7) to place your chip!</div>
       </div>
     ),
     intents: [
@@ -87,8 +98,9 @@ app.frame('/submit', async (c) => {
         border: '5px solid black',
         boxSizing: 'border-box'
       }}>
+        <div style={{ fontSize: '48px', marginBottom: '20px' }}>Connect 4</div>
         <div>{renderBoard(state.board)}</div>
-        <div style={{ marginTop: '20px' }}>Enter your next move:</div>
+        <div style={{ marginTop: '20px' }}>Enter your next move fren!</div>
       </div>
     ),
     intents: [
