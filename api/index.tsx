@@ -4,11 +4,13 @@ import { serveStatic } from 'frog/serve-static';
 
 type State = {
   board: string[][];
+  winner: string | null;
 };
 
 export const app = new Frog<{ State: State }>({
   initialState: {
-    board: Array.from({ length: 6 }, () => Array(7).fill('⚪'))
+    board: Array.from({ length: 6 }, () => Array(7).fill('⚪')),
+    winner: null
   }
 });
 
@@ -19,6 +21,49 @@ const renderBoard = (board: string[][]): string => {
 };
 
 const emptyBoard = Array.from({ length: 6 }, () => Array(7).fill('⚪'));
+
+const checkWinner = (board: string[][]): string | null => {
+  const rows = board.length;
+  const cols = board[0].length;
+
+  // Check horizontal
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols - 3; col++) {
+      if (board[row][col] !== '⚪' && board[row][col] === board[row][col + 1] && board[row][col] === board[row][col + 2] && board[row][col] === board[row][col + 3]) {
+        return board[row][col];
+      }
+    }
+  }
+
+  // Check vertical
+  for (let row = 0; row < rows - 3; row++) {
+    for (let col = 0; col < cols; col++) {
+      if (board[row][col] !== '⚪' && board[row][col] === board[row + 1][col] && board[row][col] === board[row + 2][col] && board[row][col] === board[row + 3][col]) {
+        return board[row][col];
+      }
+    }
+  }
+
+  // Check diagonal (top-left to bottom-right)
+  for (let row = 0; row < rows - 3; row++) {
+    for (let col = 0; col < cols - 3; col++) {
+      if (board[row][col] !== '⚪' && board[row][col] === board[row + 1][col + 1] && board[row][col] === board[row + 2][col + 2] && board[row][col] === board[row + 3][col + 3]) {
+        return board[row][col];
+      }
+    }
+  }
+
+  // Check diagonal (bottom-left to top-right)
+  for (let row = 3; row < rows; row++) {
+    for (let col = 0; col < cols - 3; col++) {
+      if (board[row][col] !== '⚪' && board[row][col] === board[row - 1][col + 1] && board[row][col] === board[row - 2][col + 2] && board[row][col] === board[row - 3][col + 3]) {
+        return board[row][col];
+      }
+    }
+  }
+
+  return null;
+};
 
 app.frame('/', (c) => {
   return c.res({
@@ -67,6 +112,12 @@ app.frame('/submit', async (c) => {
         }
       }
 
+      const winner = checkWinner(previousState.board);
+      if (winner) {
+        previousState.winner = winner;
+        return;
+      }
+
       const availableColumns = previousState.board[0].map((_, column) => column).filter(column => previousState.board[0][column] === '⚪');
       if (availableColumns.length > 0) {
         const botColumn = availableColumns[Math.floor(Math.random() * availableColumns.length)];
@@ -75,6 +126,11 @@ app.frame('/submit', async (c) => {
             previousState.board[row][botColumn] = '🟡';
             break;
           }
+        }
+
+        const winner = checkWinner(previousState.board);
+        if (winner) {
+          previousState.winner = winner;
         }
       }
     }
@@ -103,7 +159,13 @@ app.frame('/submit', async (c) => {
       }}>
         <div style={{ fontSize: '48px', marginBottom: '20px' }}>Connect 4</div>
         <div>{renderBoard(state.board)}</div>
-        <div style={{ marginTop: '20px' }}>{isValidInput ? 'Enter your next move fren!' : 'Invalid input! Please enter a number between 1 and 7.'}</div>
+        <div style={{ marginTop: '20px' }}>
+          {state.winner ? (
+            state.winner === '🔴' ? 'You win!' : 'Bot wins!'
+          ) : (
+            isValidInput ? 'Enter your next move fren!' : 'Invalid input! Please enter a number between 1 and 7.'
+          )}
+        </div>
       </div>
     ),
     intents: [
